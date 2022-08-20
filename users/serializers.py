@@ -1,21 +1,22 @@
 from xml.dom import ValidationErr
+
+from djoser.serializers import UserSerializer
 from rest_framework import serializers
 from users.models import CustomUser
 
-class CustomUserSerializer(serializers.ModelSerializer):
+
+class CustomUserSerializer(UserSerializer):
     class Meta:
         model = CustomUser
-        fields = '__all__'
+        fields = ('email', 'firstname', 'lastname')
 
 
 class CustomUserActivationSerializer(serializers.Serializer):
     email = serializers.EmailField()
     registration_code = serializers.CharField()
 
-
     class Meta:
         model = CustomUser
-    
 
     def validate(self, attrs):
         validated_data = super().validate(attrs)
@@ -31,7 +32,6 @@ class CustomUserActivationSerializer(serializers.Serializer):
 class CustomUserSetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
-
 
     class Meta:
         model = CustomUser

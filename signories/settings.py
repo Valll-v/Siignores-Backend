@@ -59,7 +59,7 @@ ROOT_URLCONF = 'signories.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'signories')],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -145,16 +145,19 @@ DJOSER = {
     'SEND_ACTIVATION_EMAIL': True,
     'ACTIVATION_URL': '#/activate/{uid}/{token}',
     'EMAIL': {
-        'activation': 'signories.email.ActivationEmail'
+        'activation': 'users.email.ActivationEmail',
+        'password_reset': 'users.email.PasswordResetEmail',
     },
     'SERIALIZERS': {
         'activation': 'users.serializers.CustomUserActivationSerializer',
         'user_create': 'users.serializers.CustomUserSerializer',
-        'user': 'users.serializers.CustomUserSerializer',
+        'current_user': 'users.serializers.CustomUserSerializer',
         'set_password': 'users.serializers.CustomUserSetPasswordSerializer'
     },
     'PERMISSIONS': {
         'set_password': ['rest_framework.permissions.AllowAny'],
+        'check_code': ['rest_framework.permissions.AllowAny'],
+        'password_reset_confirm': ['rest_framework.permissions.AllowAny'],
     }
 }
 
