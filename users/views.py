@@ -96,6 +96,10 @@ class CustomUserViewSet(UserViewSet):
                 f'password {serializer.data["password"]} set for user with email {serializer.data["email"]}')
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data='Password already set')
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return JsonResponse(
+            {
+                "token": settings.TOKEN_MODEL.objects.get_or_create(user=user)
+            }
+        )
 
 

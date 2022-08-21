@@ -26,7 +26,7 @@ class CustomUserActivationSerializer(serializers.Serializer):
             self.user.save()
             return validated_data
         else:
-            raise ValidationErr('Wrong registration code')
+            return validated_data
 
 
 class CustomUserSetPasswordSerializer(serializers.Serializer):
