@@ -10,6 +10,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     registration_code = models.IntegerField(null=True, blank=True, default=0)
     is_active = models.BooleanField(default=False)
     counts_of_type = models.IntegerField(default=0)
+    photo = models.ImageField(null=True, blank=True, upload_to="media/", verbose_name='Аватарка')
 
     USERNAME_FIELD = 'email'
 

@@ -20,6 +20,8 @@ class CustomUserViewSet(UserViewSet):
     def get_permissions(self):
         if self.action == "check_code":
             self.permission_classes = settings.PERMISSIONS.check_code
+        if self.action == "change_photo":
+            self.permission_classes = settings.PERMISSIONS.change_photo
         return super().get_permissions()
 
     @action(["post"], detail=False)
@@ -102,4 +104,10 @@ class CustomUserViewSet(UserViewSet):
             }
         )
 
-
+    @action(["put"], detail=False)
+    def change_photo(self, request, *args, **kwargs):
+        user = self.get_instance()
+        user.photo = request.FILES["photo"]
+        user.save()
+        serializer = self.get_serializer(user)
+        return Response(serializer.data)

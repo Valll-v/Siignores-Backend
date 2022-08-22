@@ -8,7 +8,7 @@ from users.models import CustomUser
 class CustomUserSerializer(UserSerializer):
     class Meta:
         model = CustomUser
-        fields = ('email', 'firstname', 'lastname')
+        fields = ('photo', 'email', 'firstname', 'lastname')
 
 
 class CustomUserActivationSerializer(serializers.Serializer):
