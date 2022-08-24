@@ -8,19 +8,17 @@ from users.models import CustomUser
 import users.db_communication as db
 
 
-def generate_code():
-    return randint(100000, 999999)
-
-
 class ActivationEmail(email.ActivationEmail):
     template_name = 'users/activation.html'
 
     def get_context_data(self):
         context = super().get_context_data()
-        email = context.get("user")
+        user = context.get("user")
+        email, app_id = str(user).split()
         code = str(randint(100_000, 1_000_000 - 1))
-        CustomUser.objects.get(email=email).set_registration_code(code)
+        CustomUser.objects.get(email=email, app_id=app_id).set_registration_code(code)
         context["code"] = code
+        context["email"] = email
         return context
 
 
@@ -30,7 +28,8 @@ class PasswordResetEmail(BaseEmailMessage):
     def get_context_data(self):
         context = super().get_context_data()
         user = context.get("user")
-        code = str(generate_code())
-        db.set_code(code, db.get_user(email=user))
+        email, app_id = str(user).split()
+        code = str(randint(100_000, 1_000_000 - 1))
+        db.set_code(code, db.get_user(email=email, app_id=app_id))
         context["code"] = code
         return context

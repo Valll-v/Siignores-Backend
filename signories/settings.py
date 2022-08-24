@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'djoser',
     'users',
+    'applications',
 ]
 
 MIDDLEWARE = [
@@ -153,7 +154,7 @@ DJOSER = {
         'activation': 'users.serializers.CustomUserActivationSerializer',
         'user_create': 'users.serializers.CustomUserSerializer',
         'user': 'users.serializers.CustomUserSerializer',
-        'current_user': 'users.serializers.CustomUserSerializer',
+        'current_user': 'users.serializers.CustomUserProfileSerializer',
         'set_password': 'users.serializers.CustomUserSetPasswordSerializer',
         'change_photo': 'users.serializers.CustomUserSerializer',
     },

@@ -2,12 +2,13 @@ from xml.dom import ValidationErr
 
 from django.contrib.auth.tokens import default_token_generator
 from django.http import JsonResponse
-from djoser import signals
+from django.utils.timezone import now
+from djoser import signals, utils
 from djoser.compat import get_user_email
 from djoser.conf import settings
 from djoser.utils import encode_uid
 from djoser.views import UserViewSet
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from users.models import CustomUser
@@ -50,7 +51,7 @@ class CustomUserViewSet(UserViewSet):
     def check_code(self, request, *args, **kwargs):
         data = request.data
         try:
-            user = db.get_user(email=data["email"])
+            user = CustomUser.objects.get(email=data['email'], app=data['app'])
         except KeyError:
             return Response(status=status.HTTP_400_BAD_REQUEST, data="Please, enter email for validate your code?")
         if not user:
@@ -88,9 +89,12 @@ class CustomUserViewSet(UserViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            user = CustomUser.objects.get(email=serializer.data['email'])
-        except:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data='User with this email does not exists')
+            print(serializer.data)
+            user = CustomUser.objects.get(email=serializer.data['email'], app=serializer.data['app'])
+        except KeyError:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data='You forgot about email or app')
+        except Exception as ex:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data='You with this email does not exist')
         if not user.password:
             user.set_password(serializer.data["password"])
             user.save()
@@ -98,10 +102,10 @@ class CustomUserViewSet(UserViewSet):
                 f'password {serializer.data["password"]} set for user with email {serializer.data["email"]}')
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST, data='Password already set')
-        return JsonResponse(
-            {
-                "token": settings.TOKEN_MODEL.objects.get_or_create(user=user)
-            }
+        token = utils.login_user(self.request, user)
+        token_serializer_class = settings.SERIALIZERS.token
+        return Response(
+            data=token_serializer_class(token).data, status=status.HTTP_200_OK
         )
 
     @action(["put"], detail=False)
@@ -111,3 +115,51 @@ class CustomUserViewSet(UserViewSet):
         user.save()
         serializer = self.get_serializer(user)
         return Response(serializer.data)
+
+    @action(["post"], detail=False)
+    def reset_password(self, request, *args, **kwargs):
+        user = CustomUser.objects.get(email=request.data['email'], app=request.data['app'])
+        if user:
+            context = {"user": user}
+            to = [get_user_email(user)]
+            settings.EMAIL.password_reset(self.request, context).send(to)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(["post"], detail=False)
+    def reset_password_confirm(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.user.set_password(serializer.data["new_password"])
+        if hasattr(serializer.user, "last_login"):
+            serializer.user.last_login = now()
+        serializer.user.save()
+        if settings.PASSWORD_CHANGED_EMAIL_CONFIRMATION:
+            context = {"user": serializer.user}
+            to = [get_user_email(serializer.user)]
+            settings.EMAIL.password_changed_confirmation(self.request, context).send(to)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
+    """
+    Use this endpoint to obtain user authentication token.
+    """
+
+    serializer_class = settings.SERIALIZERS.token_create
+    permission_classes = settings.PERMISSIONS.token_create
+
+    def _action(self, email, app):
+        token = utils.login_user(self.request,
+                                 CustomUser.objects.get(email=email, app=app))
+        token_serializer_class = settings.SERIALIZERS.token
+        return Response(
+            data=token_serializer_class(token).data, status=status.HTTP_200_OK
+        )
+
+    def post(self, request, **kwargs):
+        data = request.data
+        data["id"] = db.get_user(email=data["email"], app=data['app']).id
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        return self._action(data["email"], data['app'])

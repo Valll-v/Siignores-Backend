@@ -1,6 +1,4 @@
-from xml.dom import ValidationErr
-
-from djoser.serializers import UserSerializer
+from djoser.serializers import UserSerializer, TokenSerializer
 from rest_framework import serializers
 from users.models import CustomUser
 
@@ -8,7 +6,13 @@ from users.models import CustomUser
 class CustomUserSerializer(UserSerializer):
     class Meta:
         model = CustomUser
-        fields = ('photo', 'email', 'firstname', 'lastname')
+        fields = ('app', 'email', 'firstname', 'lastname')
+
+
+class CustomUserProfileSerializer(UserSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ('id', 'photo', 'email', 'firstname', 'lastname')
 
 
 class CustomUserActivationSerializer(serializers.Serializer):
@@ -20,7 +24,8 @@ class CustomUserActivationSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         validated_data = super().validate(attrs)
-        self.user = CustomUser.objects.get(email=self.initial_data.get("email", ""))
+        self.user = CustomUser.objects.get(email=self.initial_data.get("email", ""),
+                                           app_id=self.initial_data.get("app", ""))
         if self.user.registration_code == self.initial_data.get("registration_code", ""):
             self.user.is_active = True
             self.user.save()
@@ -32,6 +37,7 @@ class CustomUserActivationSerializer(serializers.Serializer):
 class CustomUserSetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
+    app = serializers.CharField()
 
     class Meta:
         model = CustomUser

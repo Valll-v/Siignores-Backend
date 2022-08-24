@@ -7,7 +7,9 @@ from django.urls import path, include, re_path
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
-from users.views import CustomUserViewSet
+
+from applications.views import ApplicationView
+from users.views import CustomUserViewSet, CustomTokenCreateView
 from rest_framework.routers import DefaultRouter
 
 
@@ -32,5 +34,6 @@ urlpatterns = [
    re_path(r'^$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
    #  re_path(r'^auth/', include('djoser.urls')),
    re_path(r'^auth/', include(users.urls)),
-   re_path(r'^auth/', include('djoser.urls.authtoken')),
+   re_path(r"^auth/token/login/?$", CustomTokenCreateView.as_view(), name="login"),
+   path(r'app/', ApplicationView.as_view())
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
