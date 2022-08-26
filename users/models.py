@@ -35,6 +35,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     class Group(models.TextChoices):
         ADMIN = 'DM', _('Admin')
         USER = 'US', _('User')
+        STUDENT = 'ST', _('Student')
 
     app = models.ForeignKey('applications.App', models.CASCADE, blank=False, null=False, related_name="app")
     firstname = models.CharField(max_length=100, null=False, blank=False)
@@ -48,7 +49,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     group = models.CharField(
         max_length=2,
         choices=Group.choices,
-        default=Group.USER,
+        default=Group.STUDENT,
     )
 
     USERNAME_FIELD = 'id'

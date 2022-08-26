@@ -1,5 +1,7 @@
 from djoser.serializers import UserSerializer, TokenSerializer
 from rest_framework import serializers
+from rest_framework.serializers import ModelSerializer
+
 from users.models import CustomUser
 
 
@@ -7,6 +9,12 @@ class CustomUserSerializer(UserSerializer):
     class Meta:
         model = CustomUser
         fields = ('app', 'email', 'firstname', 'lastname')
+
+
+class CustomAdminSerializer(UserSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ('group', 'app', 'email', 'firstname', 'lastname')
 
 
 class CustomUserProfileSerializer(UserSerializer):

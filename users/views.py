@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from users.models import CustomUser
 from loguru import logger
 import users.db_communication as db
+from users.serializers import CustomUserSerializer, CustomAdminSerializer
 
 
 class CustomUserViewSet(UserViewSet):
@@ -101,7 +102,7 @@ class CustomUserViewSet(UserViewSet):
             logger.debug(
                 f'password {serializer.data["password"]} set for user with email {serializer.data["email"]}')
         else:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data='Password already set')
+            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED, data='Password already set')
         token = utils.login_user(self.request, user)
         token_serializer_class = settings.SERIALIZERS.token
         return Response(
@@ -140,6 +141,25 @@ class CustomUserViewSet(UserViewSet):
             settings.EMAIL.password_changed_confirmation(self.request, context).send(to)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(["post"], detail=False)
+    def add_superuser(self, request, *args, **kwargs):
+        user = request.user
+        if user.group != 'DM':
+            return Response(status=status.HTTP_403_FORBIDDEN, data="Only for admins")
+        new_user = CustomAdminSerializer(data=request.data)
+        if new_user.is_valid():
+            user = new_user.save()
+        else:
+            return Response(new_user.errors)
+        try:
+            user.is_active = True
+            user.set_password(request.data["password"])
+            user.save()
+            return Response(CustomAdminSerializer(user).data)
+        except Exception as ex:
+            user.delete()
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=f"You forgot about some fields: {str(ex)}")
+
 
 class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
     """
@@ -159,6 +179,9 @@ class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
 
     def post(self, request, **kwargs):
         data = request.data
+        user = db.get_user(email=data["email"], app=data['app'])
+        if not user:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data='Wrong email or password. Try another app or email')
         data["id"] = db.get_user(email=data["email"], app=data['app']).id
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
