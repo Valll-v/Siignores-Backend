@@ -9,7 +9,8 @@ from rest_framework.viewsets import ViewSet
 from courses import models
 from courses.models import CourseSubscription, Course, Module
 from courses.serializers import CourseSerializer, PostModuleSerializer, GetModuleSerializer
-
+from chat.models import Chat, ChatUser
+from loguru import logger
 
 class CourseViewSet(ViewSet):
     permission_classes = [IsAuthenticated]
@@ -25,7 +26,16 @@ class CourseViewSet(ViewSet):
             request.data._mutable = False
             serializer = CourseSerializer(data=request.data)
             if serializer.is_valid():
+                logger.debug('entered')
                 course = serializer.save()
+                chat = Chat.objects.create(
+                    name=course.name,
+                    course_id=course.id
+                )
+                ChatUser.objects.create(
+                    user_id=user.id,
+                    chat_id=chat.id
+                )
             else:
                 course = serializer.errors
                 return Response(course)

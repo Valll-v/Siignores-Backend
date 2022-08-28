@@ -25,7 +25,7 @@ class CustomUserViewSet(UserViewSet):
         if self.action == "change_photo":
             self.permission_classes = settings.PERMISSIONS.change_photo
         return super().get_permissions()
-
+    
     @action(["post"], detail=False)
     def activation(self, request, *args, **kwargs):
         try:

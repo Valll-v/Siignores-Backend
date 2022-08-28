@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'users',
     'applications',
     'courses',
+    'channels',
+    'chat'
 ]
 
 MIDDLEWARE = [
@@ -75,6 +77,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'signories.wsgi.application'
+ASGI_APPLICATION = 'signories.asgi.application'
 
 
 # Database
@@ -192,3 +195,13 @@ REST_FRAMEWORK = {
 MEDIA_URL = ''
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('188.93.211.173', 6379)],
+        },
+    },
+}
