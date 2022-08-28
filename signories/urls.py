@@ -14,6 +14,7 @@ from users.views import CustomUserViewSet, CustomTokenCreateView
 from rest_framework.routers import DefaultRouter
 
 
+
 users = DefaultRouter()
 users.register("users", CustomUserViewSet, basename='users')
 
@@ -41,5 +42,6 @@ urlpatterns = [
    re_path(r'^courses/', include(courses.urls)),
    path('courses/course/get_modules<int:course_id>/', CourseViewSet.as_view({'get': 'get_modules'})),
    re_path(r"^auth/token/login/?$", CustomTokenCreateView.as_view(), name="login"),
-   path(r'app/', ApplicationView.as_view())
+   path(r'app/', ApplicationView.as_view()),
+   path('chat/', include('chat.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
