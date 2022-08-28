@@ -32,6 +32,7 @@ def set_lesson_id(course_id):
 
 
 class Module(models.Model):
+    name = models.CharField(max_length=100, null=False, blank=False, verbose_name='Название', default="История Кочки")
     course = models.ForeignKey('courses.Course', on_delete=models.CASCADE, blank=False, null=False)
     in_course_id = models.IntegerField(null=False, blank=False)
     image = models.ImageField(null=False, blank=False, upload_to="media/", verbose_name='Картинка')

@@ -11,6 +11,8 @@ from courses.models import CourseSubscription, Course, Module
 from courses.serializers import CourseSerializer, PostModuleSerializer, GetModuleSerializer
 from chat.models import Chat, ChatUser
 from loguru import logger
+from users.models import CustomUser
+
 
 class CourseViewSet(ViewSet):
     permission_classes = [IsAuthenticated]
@@ -46,20 +48,36 @@ class CourseViewSet(ViewSet):
     @action(["post"], detail=False)
     def sub_course(self, request):
         user = request.user
-        if user.group != "ST":
-            return Response(status=status.HTTP_403_FORBIDDEN, data="Only for students")
         try:
-            CourseSubscription.objects.get(user=user, course_id=request.data["course_id"])
+            course = Course.objects.get(id=request.data["course_id"])
+        except Course.DoesNotExist:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid id")
+        except KeyError:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Please, enter course_id (which equal id)")
+        if course.user != user:
+            return Response(status=status.HTTP_403_FORBIDDEN, data="Not your course")
+        try:
+            CustomUser.objects.get(id=request.data["user_id"])
+            CourseSubscription.objects.get(user_id=request.data["user_id"], course_id=request.data["course_id"])
             return Response(status=status.HTTP_400_BAD_REQUEST, data="Bad request (already sub on this course)")
+        except CustomUser.DoesNotExist:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid user_id")
+        except KeyError:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Please, enter user_id (which equal id)")
         except CourseSubscription.DoesNotExist:
             try:
                 sub = CourseSubscription(
                     course_id=request.data["course_id"],
-                    user=user
+                    user_id=request.data["user_id"]
                 )
                 sub.save()
+                chat = Chat.objects.get(course_id=request.data["course_id"])
+                ChatUser.objects.create(
+                    user_id=request.data["user_id"],
+                    chat_id=chat.id
+                )
             except KeyError:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data="Bad request (must contain course_id)")
+                return Response(status=status.HTTP_400_BAD_REQUEST, data="Bad request (must contain course_id and )")
             return Response(CourseSerializer(sub.course).data)
 
     @action(["get"], detail=False)
@@ -100,10 +118,10 @@ class CourseViewSet(ViewSet):
         return Response(GetModuleSerializer(module).data)
 
     @action(["get"], detail=False)
-    def get_modules(self, request):
+    def get_modules(self, request, course_id):
         user = request.user
         try:
-            course = Course.objects.get(id=request.data["course_id"])
+            course = Course.objects.get(id=course_id)
             subs = list(map(lambda x: x.user, CourseSubscription.objects.filter(user=user, course=course)))
             modules = Module.objects.filter(course=course)
         except KeyError:
@@ -116,4 +134,3 @@ class CourseViewSet(ViewSet):
         return JsonResponse(
             list(map(lambda module: GetModuleSerializer(module).data, modules)), safe=False
         )
-

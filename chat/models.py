@@ -5,11 +5,15 @@ from courses.models import Course
 
 class ChatManager(models.Manager):
     def get_chat_users(self, chat_id):
-        return [chat_user.user_id for chat_user in self.filter(chat_id=chat_id)]
+        return [chat_user.user.id for chat_user in ChatUser.objects.filter(chat_id=chat_id)]
     
 
     def get_user_chats(self, user_id):
-        return [chat_user.chat_id for chat_user in self.filter(user_id=user_id)]
+        return [{
+            'chat_id': chat_user.chat.id,
+            'chat_name': chat_user.chat.name,
+            'users_count': len(self.get_chat_users(chat_user.chat.id))
+        } for chat_user in ChatUser.objects.filter(user_id=user_id)]
 
 
 class Chat(models.Model):
