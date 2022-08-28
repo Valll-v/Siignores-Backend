@@ -12,10 +12,10 @@ class CourseSerializer(ModelSerializer):
 class GetModuleSerializer(ModelSerializer):
     class Meta:
         model = Module
-        fields = ('in_course_id', 'image', 'course')
+        fields = ('name', 'in_course_id', 'image', 'course')
 
 
 class PostModuleSerializer(ModelSerializer):
     class Meta:
         model = Module
-        fields = ('in_course_id', 'image', 'course')
+        fields = ('name', 'in_course_id', 'image', 'course')

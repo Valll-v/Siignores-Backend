@@ -45,11 +45,11 @@ class CourseViewSet(ViewSet):
             try:
                 sub = CourseSubscription(
                     course_id=request.data["course_id"],
-                    user=user
+                    user=request.data["user_id"]
                 )
                 sub.save()
             except KeyError:
-                return Response(status=status.HTTP_400_BAD_REQUEST, data="Bad request (must contain course_id)")
+                return Response(status=status.HTTP_400_BAD_REQUEST, data="Bad request (must contain course_id and )")
             return Response(CourseSerializer(sub.course).data)
 
     @action(["get"], detail=False)
@@ -90,10 +90,10 @@ class CourseViewSet(ViewSet):
         return Response(GetModuleSerializer(module).data)
 
     @action(["get"], detail=False)
-    def get_modules(self, request):
+    def get_modules(self, request, course_id):
         user = request.user
         try:
-            course = Course.objects.get(id=request.data["course_id"])
+            course = Course.objects.get(id=course_id)
             subs = list(map(lambda x: x.user, CourseSubscription.objects.filter(user=user, course=course)))
             modules = Module.objects.filter(course=course)
         except KeyError:
@@ -106,4 +106,3 @@ class CourseViewSet(ViewSet):
         return JsonResponse(
             list(map(lambda module: GetModuleSerializer(module).data, modules)), safe=False
         )
-
