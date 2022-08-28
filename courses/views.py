@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django.http import JsonResponse
 
 from rest_framework import status
@@ -9,6 +10,7 @@ from rest_framework.viewsets import ViewSet
 from courses import models
 from courses.models import CourseSubscription, Course, Module
 from courses.serializers import CourseSerializer, PostModuleSerializer, GetModuleSerializer
+from users.models import CustomUser
 
 
 class CourseViewSet(ViewSet):
@@ -36,16 +38,27 @@ class CourseViewSet(ViewSet):
     @action(["post"], detail=False)
     def sub_course(self, request):
         user = request.user
-        if user.group != "ST":
-            return Response(status=status.HTTP_403_FORBIDDEN, data="Only for students")
         try:
-            CourseSubscription.objects.get(user=user, course_id=request.data["course_id"])
+            course = Course.objects.get(id=request.data["course_id"])
+        except Course.DoesNotExist:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid id")
+        except KeyError:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Please, enter course_id (which equal id)")
+        if course.user != user:
+            return Response(status=status.HTTP_403_FORBIDDEN, data="Not your course")
+        try:
+            CustomUser.objects.get(id=request.data["user_id"])
+            CourseSubscription.objects.get(user_id=request.data["user_id"], course_id=request.data["course_id"])
             return Response(status=status.HTTP_400_BAD_REQUEST, data="Bad request (already sub on this course)")
+        except CustomUser.DoesNotExist:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid user_id")
+        except KeyError:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Please, enter user_id (which equal id)")
         except CourseSubscription.DoesNotExist:
             try:
                 sub = CourseSubscription(
                     course_id=request.data["course_id"],
-                    user=request.data["user_id"]
+                    user_id=request.data["user_id"]
                 )
                 sub.save()
             except KeyError:
