@@ -11,6 +11,8 @@ from djoser.views import UserViewSet
 from rest_framework import status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+from applications.models import App
 from users.models import CustomUser
 from loguru import logger
 import users.db_communication as db
@@ -148,6 +150,11 @@ class CustomUserViewSet(UserViewSet):
         user = request.user
         if user.group != 'DM':
             return Response(status=status.HTTP_403_FORBIDDEN, data="Only for admins")
+        if "group" in request.data:
+            if request.data["group"] == 'DM':
+                request.data["app"] = App.objects.get(name='admin_app').token
+        else:
+            Response(status=status.HTTP_400_BAD_REQUEST, data="Can't find group in request")
         new_user = CustomAdminSerializer(data=request.data)
         if new_user.is_valid():
             user = new_user.save()
@@ -181,6 +188,8 @@ class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
 
     def post(self, request, **kwargs):
         data = request.data
+        if 'app' not in data:
+            data['app'] = App.objects.get(name='admin_app')
         user = db.get_user(email=data["email"], app=data['app'])
         if not user:
             return Response(status=status.HTTP_400_BAD_REQUEST, data='Wrong email or password. Try another app or email')
