@@ -6,19 +6,19 @@ from courses.models import Course, Module, Lesson, Timer, LessonFiles
 class CourseSerializer(ModelSerializer):
     class Meta:
         model = Course
-        fields = ('id', 'name', 'image', 'user')
+        fields = ('description', 'id', 'name', 'image', 'user')
 
 
 class GetModuleSerializer(ModelSerializer):
     class Meta:
         model = Module
-        fields = ('id', 'name', 'in_course_id', 'image', 'course')
+        fields = ('description', 'id', 'name', 'in_course_id', 'image', 'course')
 
 
 class PostModuleSerializer(ModelSerializer):
     class Meta:
         model = Module
-        fields = ('name', 'in_course_id', 'image', 'course')
+        fields = ('description', 'name', 'in_course_id', 'image', 'course')
 
 
 class PostLessonSerializer(ModelSerializer):
@@ -44,3 +44,15 @@ class PostFileSerializer(ModelSerializer):
     class Meta:
         model = LessonFiles
         fields = ('lesson', 'file')
+
+
+class GetTimingSerializer(ModelSerializer):
+    class Meta:
+        model = Timer
+        fields = ('id', 'lesson', 'time', 'text')
+
+
+class GetFileSerializer(ModelSerializer):
+    class Meta:
+        model = LessonFiles
+        fields = ('id', 'lesson', 'file')

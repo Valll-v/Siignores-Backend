@@ -6,6 +6,8 @@ class Course(models.Model):
     user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, blank=False, null=False)
     name = models.CharField(max_length=100, null=False, blank=False, verbose_name='Название')
     image = models.ImageField(null=False, blank=False, upload_to="media/", verbose_name='Картинка')
+    description = models.CharField(max_length=2000, null=False, blank=False, verbose_name='Название',
+                                   default="Базовое описание (базированное)")
 
     class Meta:
         managed = True
@@ -44,9 +46,9 @@ def pretty_lesson(lesson):
     files = lesson['lessonfiles_set']
     for i in range(len(timer)):
         obj = Timer.objects.get(id=timer[i])
-        timer[i] = {"time": obj.time, "text": obj.text}
+        timer[i] = {"id": obj.id, "time": obj.time, "text": obj.text}
     for i in range(len(files)):
-        files[i] = LessonFiles.objects.get(id=files[i]).file.url
+        files[i] = {"id": files[i], "file": LessonFiles.objects.get(id=files[i]).file.url}
     return lesson
 
 
@@ -63,6 +65,8 @@ class Module(models.Model):
     course = models.ForeignKey('courses.Course', on_delete=models.CASCADE, blank=False, null=False)
     in_course_id = models.IntegerField(null=False, blank=False)
     image = models.ImageField(null=False, blank=False, upload_to="media/", verbose_name='Картинка')
+    description = models.CharField(max_length=2000, null=False, blank=False, verbose_name='Название',
+                                   default="Базовое описание (базированное)")
 
     class Meta:
         managed = True
