@@ -1,11 +1,11 @@
 from django.db import models
-
+from django.utils.translation import gettext_lazy as _
 
 # Create your models here.
 class Course(models.Model):
     user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, blank=False, null=False)
     name = models.CharField(max_length=100, null=False, blank=False, verbose_name='Название')
-    image = models.ImageField(null=False, blank=False, upload_to="media/", verbose_name='Картинка')
+    image = models.ImageField(null=True, blank=True, upload_to="media/", verbose_name='Картинка')
     description = models.CharField(max_length=2000, null=False, blank=False, verbose_name='Название',
                                    default="Базовое описание (базированное)")
 
@@ -52,6 +52,13 @@ def pretty_lesson(lesson):
     return lesson
 
 
+def pretty_homework(homework):
+    files = homework['homeworkfiles_set']
+    for i in range(len(files)):
+        files[i] = {"id": files[i], "file": HomeworkFiles.objects.get(id=files[i]).file.url}
+    return homework
+
+
 def get_timers(lesson):
     return Timer.objects.filter(lesson=lesson)
 
@@ -64,7 +71,7 @@ class Module(models.Model):
     name = models.CharField(max_length=100, null=False, blank=False, verbose_name='Название', default="История Кочки")
     course = models.ForeignKey('courses.Course', on_delete=models.CASCADE, blank=False, null=False)
     in_course_id = models.IntegerField(null=False, blank=False)
-    image = models.ImageField(null=False, blank=False, upload_to="media/", verbose_name='Картинка')
+    image = models.ImageField(null=True, blank=True, upload_to="media/", verbose_name='Картинка')
     description = models.CharField(max_length=2000, null=False, blank=False, verbose_name='Название',
                                    default="Базовое описание (базированное)")
 
@@ -106,3 +113,45 @@ class Timer(models.Model):
         managed = True
         db_table = 'timers'
         unique_together = ('lesson', 'time')
+
+
+class Special(models.Model):
+    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, blank=False, null=False)
+    header = models.CharField(max_length=100, null=False, blank=False, verbose_name='Название')
+    image = models.ImageField(null=True, blank=False, upload_to="media/", verbose_name='Картинка')
+    description = models.CharField(max_length=2000, null=False, blank=False, verbose_name='Название',
+                                   default="Базовое описание (базированное)")
+
+    class Meta:
+        managed = True
+        db_table = 'special'
+
+
+class Homework(models.Model):
+
+    class Group(models.TextChoices):
+        COMPLETE = 'Complete'
+        IN_PROGRESS = 'In_progress'
+        FAILED = 'Failed'
+
+    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, blank=False, null=False)
+    lesson = models.ForeignKey('courses.Lesson', on_delete=models.CASCADE, blank=False, null=False)
+    text = models.CharField(max_length=5000, null=True, blank=True, verbose_name='Описание')
+    status = models.CharField(
+        max_length=20,
+        choices=Group.choices,
+        default=Group.IN_PROGRESS,
+    )
+
+    class Meta:
+        managed = True
+        db_table = 'homework'
+
+
+class HomeworkFiles(models.Model):
+    homework = models.ForeignKey('courses.Homework', on_delete=models.CASCADE, blank=False, null=False)
+    file = models.FileField(null=False, blank=False, upload_to="media/", verbose_name='Файл')
+
+    class Meta:
+        managed = True
+        db_table = 'homework_files'

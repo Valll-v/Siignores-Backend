@@ -16,7 +16,7 @@ from applications.models import App
 from users.models import CustomUser
 from loguru import logger
 import users.db_communication as db
-from users.serializers import CustomUserSerializer, CustomAdminSerializer
+from users.serializers import CustomUserSerializer, CustomAdminSerializer, CustomUserProfileSerializer
 
 
 class CustomUserViewSet(UserViewSet):
@@ -118,8 +118,7 @@ class CustomUserViewSet(UserViewSet):
         user = self.get_instance()
         user.photo = request.FILES["photo"]
         user.save()
-        serializer = self.get_serializer(user)
-        return Response(serializer.data)
+        return Response(CustomUserProfileSerializer(user).data)
 
     @action(["post"], detail=False)
     def reset_password(self, request, *args, **kwargs):
@@ -169,6 +168,20 @@ class CustomUserViewSet(UserViewSet):
             user.delete()
             return Response(status=status.HTTP_400_BAD_REQUEST, data=f"You forgot about some fields: {str(ex)}")
 
+    @action(["get"], detail=False)
+    def get_users(self, request, app_id):
+        user = request.user
+        app = App.objects.get(id=app_id)
+        if user.group == 'ST' or (user.group == 'US' and user.app != app):
+            return Response(status=status.HTTP_403_FORBIDDEN,
+                            data="You are simp student, get away. Or that not your app, get away anyway")
+        return JsonResponse(
+            {
+                "users": [CustomUserProfileSerializer(user).data for user in CustomUser.objects.filter(app=app,
+                                                                                                       group='US')]
+            }
+        )
+
 
 class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
     """
@@ -178,22 +191,39 @@ class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
     serializer_class = settings.SERIALIZERS.token_create
     permission_classes = settings.PERMISSIONS.token_create
 
-    def _action(self, email, app):
-        token = utils.login_user(self.request,
-                                 CustomUser.objects.get(email=email, app=app))
-        token_serializer_class = settings.SERIALIZERS.token
-        return Response(
-            data=token_serializer_class(token).data, status=status.HTTP_200_OK
-        )
+    def _action(self, email, app=None):
+        if app:
+            token = utils.login_user(self.request,
+                                     CustomUser.objects.get(email=email, app=app))
+            token_serializer_class = settings.SERIALIZERS.token
+            return Response(
+                data=token_serializer_class(token).data, status=status.HTTP_200_OK
+            )
+        else:
+            token = utils.login_user(self.request,
+                                     CustomUser.objects.get(email=email))
+            token_serializer_class = settings.SERIALIZERS.token
+            return Response(
+                data=token_serializer_class(token).data, status=status.HTTP_200_OK
+            )
 
     def post(self, request, **kwargs):
         data = request.data
         if 'app' not in data:
-            data['app'] = App.objects.get(name='admin_app')
-        user = db.get_user(email=data["email"], app=data['app'])
-        if not user:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data='Wrong email or password. Try another app or email')
-        data["id"] = db.get_user(email=data["email"], app=data['app']).id
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        return self._action(data["email"], data['app'])
+            user = db.get_user(email=data["email"])
+            if not user:
+                return Response(status=status.HTTP_400_BAD_REQUEST,
+                                data='Wrong email or password. Try another app or email')
+            data["id"] = user.id
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            return self._action(data["email"])
+        else:
+            user = db.get_user(email=data["email"], app=data['app'])
+            if not user:
+                return Response(status=status.HTTP_400_BAD_REQUEST,
+                                data='Wrong email or password. Try another app or email')
+            data["id"] = user.id
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            return self._action(data["email"], data['app'])

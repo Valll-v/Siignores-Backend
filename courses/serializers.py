@@ -1,12 +1,18 @@
 from rest_framework.serializers import ModelSerializer
 
-from courses.models import Course, Module, Lesson, Timer, LessonFiles
+from courses.models import *
 
 
 class CourseSerializer(ModelSerializer):
     class Meta:
         model = Course
         fields = ('description', 'id', 'name', 'image', 'user')
+
+
+class SpecialSerializer(ModelSerializer):
+    class Meta:
+        model = Special
+        fields = ('description', 'id', 'header', 'image', 'user')
 
 
 class GetModuleSerializer(ModelSerializer):
@@ -56,3 +62,15 @@ class GetFileSerializer(ModelSerializer):
     class Meta:
         model = LessonFiles
         fields = ('id', 'lesson', 'file')
+
+
+class HomeworkSerializer(ModelSerializer):
+    class Meta:
+        model = Homework
+        fields = ('status', 'id', 'user', 'lesson', 'text', 'homeworkfiles_set')
+
+
+class HomeworkFileSerializer(ModelSerializer):
+    class Meta:
+        model = HomeworkFiles
+        fields = ('id', 'homework', 'file')
