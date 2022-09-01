@@ -16,6 +16,32 @@ from chat.models import Chat, ChatUser
 from loguru import logger
 from users.models import CustomUser
 from users.serializers import CustomUserProfileSerializer
+import asyncio
+from channels.layers import get_channel_layer
+import asyncio
+
+channel_layer = get_channel_layer()
+
+
+def get_notifiers(user):
+    app = user.app
+    return list(
+        map(
+            lambda sub: sub, CourseSubscription.objects.filter(course__user__app=app)
+        )
+    )
+
+async def notify(user_id, message):    
+    logger.debug(f'sending notification to user {user_id}')
+    await channel_layer.group_send(
+                'chat_' + str(user_id),
+                {
+                    'type': 'notify',
+                    'message': message,
+                    'notifications': 228
+                }
+            )
+
 
 
 class CourseViewSet(ViewSet):
@@ -267,7 +293,7 @@ class CourseViewSet(ViewSet):
             return Response(status=status.HTTP_403_FORBIDDEN, data="You must be teacher or student of "
                                                                    "this course to get it")
         return JsonResponse(
-            list(map(lambda lesson: pretty_lesson(GetLessonSerializer(lesson).data), lessons)), safe=False
+            list(map(lambda lesson: pretty_lesson(GetLessonSerializer(lesson).data, user), lessons)), safe=False
         )
 
     @action(["get"], detail=False)
@@ -327,9 +353,9 @@ class CourseViewSet(ViewSet):
         if course.user != user and user not in subs:
             return Response(status=status.HTTP_403_FORBIDDEN, data="You must be teacher of "
                                                                    "this course to get it")
-        return JsonResponse(pretty_lesson(GetLessonSerializer(lesson).data))
+        return JsonResponse(pretty_lesson(GetLessonSerializer(lesson).data, user))
 
-    @action(["get"], detail=False)
+    @action(["delete"], detail=False)
     def lesson_del(self, request, lesson_id):
         user = request.user
         try:
@@ -818,6 +844,8 @@ class CourseViewSet(ViewSet):
             serializer = CalendarSerializer(data=request.data)
             if serializer.is_valid():
                 cal = serializer.save()
+                for notifyee in get_notifiers(user):
+                    asyncio.run(notify(notifyee.id, 'Новое событие! Посмотрите календарь!'))
                 return Response(CalendarSerializer(cal).data)
             else:
                 cal = serializer.errors
@@ -844,6 +872,8 @@ class CourseViewSet(ViewSet):
             except KeyError:
                 pass
             calendar.save()
+            for notifyee in get_notifiers(user):
+                asyncio.run(notify(notifyee.id, f'Изменено событие {calendar.header}!'))
             return Response(CalendarSerializer(calendar).data)
 
     @action(["get"], detail=False)
@@ -864,6 +894,8 @@ class CourseViewSet(ViewSet):
         if calendar.course.user != user:
             return Response(status=status.HTTP_403_FORBIDDEN, data="Not your course")
         calendar.delete()
+        for notifyee in get_notifiers(user):
+            asyncio.run(notify(notifyee.id,  f'Отменено событие {calendar.header}!'))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(["get"], detail=False)
@@ -875,3 +907,15 @@ class CourseViewSet(ViewSet):
         except Calendar.DoesNotExist:
             return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid calendar id")
         return Response([CalendarSerializer(calendar).data for calendar in calendars])
+
+    @action(["post"], detail=False)
+    def module_perm(self, request):
+        user = request.user
+        try:
+            module = Module.objects.get(id=request.data["module"])
+        except Module.DoesNotExist:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid module id")
+        except KeyError:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Please, enter module (which equal id)")
+
+

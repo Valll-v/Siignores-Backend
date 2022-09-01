@@ -42,7 +42,7 @@ def get_lesson_in_module(module, lesson_id):
     return Lesson.objects.get(module=module, in_module_id=lesson_id)
 
 
-def pretty_lesson(lesson):
+def pretty_lesson(lesson, user=None):
     timer = lesson['timer_set']
     files = lesson['lessonfiles_set']
     for i in range(len(timer)):
@@ -50,6 +50,14 @@ def pretty_lesson(lesson):
         timer[i] = {"id": obj.id, "time": obj.time, "text": obj.text}
     for i in range(len(files)):
         files[i] = {"id": files[i], "file": LessonFiles.objects.get(id=files[i]).file.url}
+    if user:
+        homeworks = Homework.objects.filter(user=user, lesson_id=lesson['id'])
+        if not homeworks:
+            lesson['status'] = None
+        elif homeworks.filter(status='Complete'):
+            lesson['status'] = 'Complete'
+        else:
+            lesson['status'] = homeworks.last().status
     return lesson
 
 
@@ -66,6 +74,15 @@ def get_timers(lesson):
 
 def get_files(lesson):
     return LessonFiles.objects.filter(lesson=lesson)
+
+
+def get_notifiers(user):
+    app = user.app
+    return list(
+        map(
+            lambda sub: sub.user, CourseSubscription.objects.filter(course__user__app=app)
+        )
+    )
 
 
 def count_progress(course: Course, user):
