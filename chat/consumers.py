@@ -1,7 +1,7 @@
 import json 
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from .models import Message, Chat, ChatUser
+from .models import Message, Chat, ChatUser, Notification
 from loguru import logger
 from djoser.conf import settings
 from users.models import CustomUser
@@ -100,12 +100,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }, ensure_ascii=False))
 
 
-    async def notify(self, reciever_id, message):
-        await self.channel_layer.group_send(
-            'chat_' + reciever_id,
-            {
-                'type': 'notification',
-                'from': self.room_name,
-                'message': message,
-            }
+    async def notify(self, event):
+        logger.debug(event)
+        self.new_message(
+            user_id=self.room_name,
+            message=event['message']
         )
+        await self.send(text_data=json.dumps({
+            'type': 'notification',
+            'message': event['message'],
+            'notifications': event['notifications']
+        }, ensure_ascii=False))

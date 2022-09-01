@@ -12,10 +12,41 @@ from courses.models import CourseSubscription, Course, Module, pretty_lesson, Le
 from courses.serializers import CourseSerializer, PostModuleSerializer, GetModuleSerializer, PostLessonSerializer, \
     GetLessonSerializer, PostTimingSerializer, PostFileSerializer, SpecialSerializer, HomeworkSerializer, \
     HomeworkFileSerializer, CalendarSerializer
-from chat.models import Chat, ChatUser
+from chat.models import Chat, ChatUser, Notification
 from loguru import logger
 from users.models import CustomUser
 from users.serializers import CustomUserProfileSerializer
+import asyncio
+from channels.layers import get_channel_layer
+from channels.db import database_sync_to_async
+
+
+channel_layer = get_channel_layer()
+
+def get_notifiers(user):
+    app = user.app
+    return list(set(list(
+        map(
+            lambda sub: sub.user, CourseSubscription.objects.filter(course__user__app=app)
+        )
+    )))
+
+
+def notify(user_id, message):    
+    logger.debug(f'sending notification to user {user_id}')
+    Notification.objects.create(
+        user_id=user_id,
+        message=message
+    )
+    asyncio.run(channel_layer.group_send(
+                'chat_' + str(user_id),
+                {
+                    'type': 'notify',
+                    'message': message,
+                    'notifications': 228
+                }
+            ))
+
 
 
 class CourseViewSet(ViewSet):
@@ -818,6 +849,8 @@ class CourseViewSet(ViewSet):
             serializer = CalendarSerializer(data=request.data)
             if serializer.is_valid():
                 cal = serializer.save()
+                for notifyee in get_notifiers(user):
+                    notify(notifyee.id, 'Новое событие! Посмотрите календарь!')
                 return Response(CalendarSerializer(cal).data)
             else:
                 cal = serializer.errors
@@ -844,6 +877,8 @@ class CourseViewSet(ViewSet):
             except KeyError:
                 pass
             calendar.save()
+            for notifyee in get_notifiers(user):
+                asyncio.run(notify(notifyee.id, f'Изменено событие {calendar.header}!'))
             return Response(CalendarSerializer(calendar).data)
 
     @action(["get"], detail=False)
@@ -864,6 +899,8 @@ class CourseViewSet(ViewSet):
         if calendar.course.user != user:
             return Response(status=status.HTTP_403_FORBIDDEN, data="Not your course")
         calendar.delete()
+        for notifyee in get_notifiers(user):
+            asyncio.run(notify(notifyee.id,  f'Отменено событие {calendar.header}!'))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(["get"], detail=False)

@@ -5,6 +5,7 @@ from django.urls import path, include, re_path
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from chat.views import ChatView
 
 from applications.views import ApplicationView
 from courses.views import CourseViewSet
@@ -59,4 +60,5 @@ urlpatterns = [
    re_path(r"^auth/token/login/?$", CustomTokenCreateView.as_view(), name="login"),
    path(r'app/', ApplicationView.as_view()),
    path('chat/', include('chat.urls')),
+   path('notifications/', ChatView.as_view({'get': 'get_notifications'})),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -67,3 +67,24 @@ class Message(models.Model):
     class Meta:
         managed = True
         db_table = 'message'
+
+
+class NotificationManager(models.Manager):
+    def get_user_notifications(self, user_id):
+        notifications = self.filter(user_id=user_id, is_viewed=False)
+        for notification in notifications:
+            notification.is_viewed = True
+            notification.save()
+        return list(notifications.values('id', 'message'))
+
+
+class Notification(models.Model):
+    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE)
+    message = models.CharField(max_length=200)
+    is_viewed = models.BooleanField(default=False)
+
+    objects = NotificationManager()
+
+    class Meta:
+        managed = True
+        db_table = 'notifications'
