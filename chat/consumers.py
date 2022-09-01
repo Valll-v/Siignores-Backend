@@ -47,7 +47,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_user_by_id(self, user_id):
-        return CustomUser.objects.filter(id=user_id).first()
+        return CustomUser.objects.get(id=user_id)
     
     @database_sync_to_async
     def get_chat_users(self, chat_id):
@@ -67,12 +67,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         # Отправляем сообщение 
         logger.debug(await self.get_chat_users(chat_id))
+        
+        sender = await self.get_user_by_id(self.room_name)
+
+
         for user_id in await self.get_chat_users(chat_id):
             await self.channel_layer.group_send(
-                'chat_' + str(user_id),
+                'chat_' + str(user_id['id']),
                 {
                     'type': 'chat_message',
-                    'from': self.room_name,
+                    'chat_id': chat_id,
+                    'from': {
+                        'id': sender.id,
+                        'firstname': sender.firstname,
+                        'lastname': sender.lastname,
+                        'photo': sender.photo.url if sender.photo else None
+                    },
                     'message': message,
                 }
             )
@@ -84,6 +94,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # Отправляем сообщение клиентам
         # user = await self.get_user_by_id(int(event['from']))
         await self.send(text_data=json.dumps({
+            'chat_id': event['chat_id'],
             'from': event['from'],
             'message': message,
         }, ensure_ascii=False))

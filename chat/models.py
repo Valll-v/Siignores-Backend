@@ -5,7 +5,12 @@ from courses.models import Course
 
 class ChatManager(models.Manager):
     def get_chat_users(self, chat_id):
-        return [chat_user.user.id for chat_user in ChatUser.objects.filter(chat_id=chat_id)]
+        return [{
+            'id': chat_user.user.id,
+            'firstname': chat_user.user.firstname,
+            'lastname': chat_user.user.lastname,
+            'photo': chat_user.user.photo.url if chat_user.user.photo else None
+        } for chat_user in ChatUser.objects.filter(chat_id=chat_id)]
     
 
     def get_user_chats(self, user_id):
@@ -40,7 +45,12 @@ class ChatUser(models.Model):
 class MessageManager(models.Manager):
     def get_chat_messages(self, chat_id):
         return [{
-            'from': message.from_user.id,
+            'from': {
+                'id': message.from_user.id,
+                'firstname':  message.from_user.firstname,
+                'lastname':  message.from_user.lastname,
+                'photo':  message.from_user.photo.url if  message.from_user.photo else None
+            },
             'time': message.time,
             'message': message.message
         } for message in self.filter(chat_id=chat_id)]

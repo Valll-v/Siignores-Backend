@@ -1,5 +1,5 @@
 from xml.dom import ValidationErr
-
+from applications.models import App
 from django.contrib.auth.tokens import default_token_generator
 from django.http import JsonResponse
 from django.utils.timezone import now
@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from users.models import CustomUser
 from loguru import logger
 import users.db_communication as db
-from users.serializers import CustomUserSerializer, CustomAdminSerializer
+from users.serializers import CustomUserSerializer, CustomAdminSerializer, CustomUserProfileSerializer
 
 
 class CustomUserViewSet(UserViewSet):
@@ -116,8 +116,7 @@ class CustomUserViewSet(UserViewSet):
         user = self.get_instance()
         user.photo = request.FILES["photo"]
         user.save()
-        serializer = self.get_serializer(user)
-        return Response(serializer.data)
+        return Response(CustomUserProfileSerializer(user).data)
 
     @action(["post"], detail=False)
     def reset_password(self, request, *args, **kwargs):
@@ -148,6 +147,11 @@ class CustomUserViewSet(UserViewSet):
         user = request.user
         if user.group != 'DM':
             return Response(status=status.HTTP_403_FORBIDDEN, data="Only for admins")
+        if "group" in request.data:
+            if request.data["group"] == 'DM':
+                request.data["app"] = App.objects.get(name='admin_app').token
+        else:
+            Response(status=status.HTTP_400_BAD_REQUEST, data="Can't find group in request")
         new_user = CustomAdminSerializer(data=request.data)
         if new_user.is_valid():
             user = new_user.save()
@@ -161,6 +165,26 @@ class CustomUserViewSet(UserViewSet):
         except Exception as ex:
             user.delete()
             return Response(status=status.HTTP_400_BAD_REQUEST, data=f"You forgot about some fields: {str(ex)}")
+
+    @action(["get"], detail=False)
+    def get_users(self, request, app_id):
+        user = request.user
+        app = App.objects.get(id=app_id)
+        if user.group == 'ST' or (user.group == 'US' and user.app != app):
+            return Response(status=status.HTTP_403_FORBIDDEN,
+                            data="You are simp student, get away. Or that not your app, get away anyway")        
+        return JsonResponse(
+            {
+                "users": [CustomUserProfileSerializer(user).data for user in CustomUser.objects.filter(app=app,
+                                                                                                       group='US')]
+            }
+        )
+    
+    @action(["delete"], detail=False)
+    def delete(self, request):
+        user = request.user
+        user.delete()
+        return Response(status=status.HTTP_200_OK)
 
 
 class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
@@ -181,6 +205,8 @@ class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
 
     def post(self, request, **kwargs):
         data = request.data
+        if 'app' not in data:
+            data['app'] = App.objects.get(name='admin_app')
         user = db.get_user(email=data["email"], app=data['app'])
         if not user:
             return Response(status=status.HTTP_400_BAD_REQUEST, data='Wrong email or password. Try another app or email')
