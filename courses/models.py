@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+
 # Create your models here.
 class Course(models.Model):
     user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, blank=False, null=False)
@@ -67,6 +68,36 @@ def get_files(lesson):
     return LessonFiles.objects.filter(lesson=lesson)
 
 
+def count_progress(course: Course, user):
+    _sum = 0
+    all_lessons = 0
+    completed_lessons = 0
+    completed_modules = 0
+    modules = Module.objects.filter(course=course)
+    for module in modules:
+        lessons = Lesson.objects.filter(module=module)
+        comp = 0
+        for lesson in lessons:
+            all_lessons += 1
+            try:
+                if Homework.objects.filter(user=user, lesson=lesson, status='Complete'):
+                    comp += 1
+            except AttributeError:
+                pass
+        if comp == len(lessons):
+            completed_modules += 1
+        completed_lessons += comp
+    return {
+        "course_id": course.id,
+        "course_name": course.name,
+        "all_modules": len(modules),
+        "completed_modules": completed_modules,
+        "all_lessons": all_lessons,
+        "completed_lessons": completed_lessons,
+        "verdict": round(completed_lessons * 100 / all_lessons) if all_lessons else 0
+    }
+
+
 class Module(models.Model):
     name = models.CharField(max_length=100, null=False, blank=False, verbose_name='Название', default="История Кочки")
     course = models.ForeignKey('courses.Course', on_delete=models.CASCADE, blank=False, null=False)
@@ -128,7 +159,6 @@ class Special(models.Model):
 
 
 class Homework(models.Model):
-
     class Group(models.TextChoices):
         COMPLETE = 'Complete'
         IN_PROGRESS = 'In_progress'
@@ -155,3 +185,11 @@ class HomeworkFiles(models.Model):
     class Meta:
         managed = True
         db_table = 'homework_files'
+
+
+class Calendar(models.Model):
+    course = models.ForeignKey('courses.Course', on_delete=models.CASCADE, blank=False, null=False)
+    description = models.CharField(max_length=2000, null=False, blank=False, default="Базовое описание (базированное)")
+    header = models.CharField(max_length=200, null=False, blank=False)
+    date = models.DateField(null=False, blank=False, default="2021-01-01")
+    time = models.TimeField(null=False, blank=False, default="00:00:00")

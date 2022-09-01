@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'rest_framework',
     'rest_framework.authtoken',
+    'corsheaders',
     'djoser',
     'users',
     'applications',
@@ -195,6 +196,8 @@ REST_FRAMEWORK = {
 MEDIA_URL = ''
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10*1024*1024
 
 
 CHANNEL_LAYERS = {

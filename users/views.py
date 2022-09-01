@@ -195,17 +195,13 @@ class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
         if app:
             token = utils.login_user(self.request,
                                      CustomUser.objects.get(email=email, app=app))
-            token_serializer_class = settings.SERIALIZERS.token
-            return Response(
-                data=token_serializer_class(token).data, status=status.HTTP_200_OK
-            )
         else:
             token = utils.login_user(self.request,
                                      CustomUser.objects.get(email=email))
-            token_serializer_class = settings.SERIALIZERS.token
-            return Response(
-                data=token_serializer_class(token).data, status=status.HTTP_200_OK
-            )
+        token_serializer_class = settings.SERIALIZERS.token
+        return Response(
+            data=token_serializer_class(token).data, status=status.HTTP_200_OK
+        )
 
     def post(self, request, **kwargs):
         data = request.data

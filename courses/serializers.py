@@ -74,3 +74,9 @@ class HomeworkFileSerializer(ModelSerializer):
     class Meta:
         model = HomeworkFiles
         fields = ('id', 'homework', 'file')
+
+
+class CalendarSerializer(ModelSerializer):
+    class Meta:
+        model = Calendar
+        fields = ('id', 'course', 'description', 'header', 'date', 'time')

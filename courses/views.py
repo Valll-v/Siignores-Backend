@@ -8,10 +8,10 @@ from rest_framework.viewsets import ViewSet
 
 from courses import models
 from courses.models import CourseSubscription, Course, Module, pretty_lesson, Lesson, Special, Timer, LessonFiles, \
-    pretty_homework, Homework
+    pretty_homework, Homework, Calendar
 from courses.serializers import CourseSerializer, PostModuleSerializer, GetModuleSerializer, PostLessonSerializer, \
     GetLessonSerializer, PostTimingSerializer, PostFileSerializer, SpecialSerializer, HomeworkSerializer, \
-    HomeworkFileSerializer
+    HomeworkFileSerializer, CalendarSerializer
 from chat.models import Chat, ChatUser
 from loguru import logger
 from users.models import CustomUser
@@ -410,7 +410,9 @@ class CourseViewSet(ViewSet):
                 lesson = serializer.errors
                 return Response(lesson)
             lesson = pretty_lesson(GetLessonSerializer(lesson).data)
-            return JsonResponse(lesson)
+            resp = JsonResponse(lesson)
+            resp['Access-Control-Allow-Origin'] = '*'
+            return resp
         else:
             try:
                 lesson = Lesson.objects.get(id=request.data["lesson"])
@@ -475,7 +477,9 @@ class CourseViewSet(ViewSet):
                         return Response(file)
             lesson.save()
             lesson = pretty_lesson(GetLessonSerializer(lesson).data)
-            return JsonResponse(lesson)
+            resp = JsonResponse(lesson)
+            resp['Access-Control-Allow-Origin'] = '*'
+            return resp
 
     @action(["post", "put"], detail=False)
     def special(self, request):
@@ -783,3 +787,91 @@ class CourseViewSet(ViewSet):
         except Homework.DoesNotExist:
             return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid id")
         return JsonResponse(pretty_homework(HomeworkSerializer(homework).data))
+
+    @action(["get"], detail=False)
+    def progress(self, request):
+        user = request.user
+        progress = []
+        for sub in CourseSubscription.objects.filter(user=user):
+            course = sub.course
+            progress.append(models.count_progress(course, user))
+        return Response(progress)
+
+    @action(["post", "put"], detail=False)
+    def calendar(self, request):
+        user = request.user
+        try:
+            course = Course.objects.get(id=request.data["course"])
+        except Course.DoesNotExist:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid id")
+        except KeyError:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Please, enter Course (which equal id)")
+        if user != course.user:
+            return Response(status=status.HTTP_403_FORBIDDEN, data="You must be teacher on course to do that")
+        if request.method == 'POST':
+            try:
+                request.data['user'] = user.id
+            except AttributeError:
+                request.data._mutable = True
+                request.data['user'] = user.id
+                request.data._mutable = False
+            serializer = CalendarSerializer(data=request.data)
+            if serializer.is_valid():
+                cal = serializer.save()
+                return Response(CalendarSerializer(cal).data)
+            else:
+                cal = serializer.errors
+                return Response(cal)
+        else:
+            try:
+                calendar = Calendar.objects.get(id=request.data["calendar"])
+            except Calendar.DoesNotExist:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid calendar id")
+            except KeyError:
+                return Response(status=status.HTTP_400_BAD_REQUEST, data="Please, enter calendar_id (which equal id)")
+            if calendar.course.user != user:
+                return Response(status=status.HTTP_403_FORBIDDEN, data="Not your course")
+            try:
+                calendar.header = request.data['header']
+            except KeyError:
+                pass
+            try:
+                calendar.description = request.data['description']
+            except KeyError:
+                pass
+            try:
+                calendar.datetime = request.data['datetime']
+            except KeyError:
+                pass
+            calendar.save()
+            return Response(CalendarSerializer(calendar).data)
+
+    @action(["get"], detail=False)
+    def get_calendar(self, request, calendar_id):
+        try:
+            calendar = Calendar.objects.get(id=calendar_id)
+        except Calendar.DoesNotExist:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid calendar id")
+        return Response(CalendarSerializer(calendar).data)
+
+    @action(["delete"], detail=False)
+    def delete_calendar(self, request, calendar_id):
+        user = request.user
+        try:
+            calendar = Calendar.objects.get(id=calendar_id)
+        except Calendar.DoesNotExist:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid calendar id")
+        if calendar.course.user != user:
+            return Response(status=status.HTTP_403_FORBIDDEN, data="Not your course")
+        calendar.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(["get"], detail=False)
+    def student_calendar(self, request):
+        user = request.user
+        try:
+            courses = [i.course for i in CourseSubscription.objects.filter(user=user)]
+            calendars = Calendar.objects.filter(course__in=courses)
+        except Calendar.DoesNotExist:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Invalid calendar id")
+        return Response([CalendarSerializer(calendar).data for calendar in calendars])
