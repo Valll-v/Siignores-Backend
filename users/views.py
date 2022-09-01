@@ -11,6 +11,8 @@ from djoser.views import UserViewSet
 from rest_framework import status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+from applications.models import App
 from users.models import CustomUser
 from loguru import logger
 import users.db_communication as db
@@ -180,11 +182,12 @@ class CustomUserViewSet(UserViewSet):
             }
         )
     
-    @action(["delete"], detail=False)
-    def delete(self, request):
-        user = request.user
-        user.delete()
-        return Response(status=status.HTTP_200_OK)
+@action(["delete"], detail=False)
+def delete(self, request):
+    user = request.user
+    user.delete()
+    return Response(status=status.HTTP_200_OK)
+
 
 
 class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
@@ -195,9 +198,13 @@ class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
     serializer_class = settings.SERIALIZERS.token_create
     permission_classes = settings.PERMISSIONS.token_create
 
-    def _action(self, email, app):
-        token = utils.login_user(self.request,
-                                 CustomUser.objects.get(email=email, app=app))
+    def _action(self, email, app=None):
+        if app:
+            token = utils.login_user(self.request,
+                                     CustomUser.objects.get(email=email, app=app))
+        else:
+            token = utils.login_user(self.request,
+                                     CustomUser.objects.get(email=email))
         token_serializer_class = settings.SERIALIZERS.token
         return Response(
             data=token_serializer_class(token).data, status=status.HTTP_200_OK
@@ -206,11 +213,20 @@ class CustomTokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
     def post(self, request, **kwargs):
         data = request.data
         if 'app' not in data:
-            data['app'] = App.objects.get(name='admin_app')
-        user = db.get_user(email=data["email"], app=data['app'])
-        if not user:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data='Wrong email or password. Try another app or email')
-        data["id"] = db.get_user(email=data["email"], app=data['app']).id
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        return self._action(data["email"], data['app'])
+            user = db.get_user(email=data["email"])
+            if not user:
+                return Response(status=status.HTTP_400_BAD_REQUEST,
+                                data='Wrong email or password. Try another app or email')
+            data["id"] = user.id
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            return self._action(data["email"])
+        else:
+            user = db.get_user(email=data["email"], app=data['app'])
+            if not user:
+                return Response(status=status.HTTP_400_BAD_REQUEST,
+                                data='Wrong email or password. Try another app or email')
+            data["id"] = user.id
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            return self._action(data["email"], data['app'])
